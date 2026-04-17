@@ -1,0 +1,269 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<title>Serra's Hunt — QR Codes</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;600&family=Crimson+Text:ital,wght@0,400;1,400&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+<style>
+  :root { --gold: #c9a84c; --gold-light: #e8d090; --deep: #0a0810; --cream: #fffbf0; }
+  * { margin: 0; padding: 0; box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+  html, body { height: 100%; overflow: hidden; background: var(--deep); font-family: 'Cinzel', serif; }
+
+  .screen {
+    display: none;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    height: 100vh;
+    padding: 40px 24px 80px;
+    text-align: center;
+    position: relative;
+  }
+  .screen.active { display: flex; }
+
+  /* Unique backgrounds per clue */
+  #s1 { background: radial-gradient(ellipse at 50% 40%, #1a3a2a99, #0a0810 75%); }
+  #s2 { background: radial-gradient(ellipse at 50% 40%, #2a165077, #0a0810 75%); }
+  #s3 { background: radial-gradient(ellipse at 50% 40%, #6b0e0e66, #0a0810 75%); }
+  #s4 { background: radial-gradient(ellipse at 50% 40%, #0d224477, #0a0810 75%); }
+  #s5 { background: radial-gradient(ellipse at 50% 40%, #c04a1a44, #0a0810 75%); }
+  #s6 { background: radial-gradient(ellipse at 50% 40%, #4a203055, #0a0810 75%); }
+  #s7 { background: radial-gradient(ellipse at 50% 40%, #c9a84c33, #0a0810 75%); }
+
+  .top-bar {
+    position: fixed; top: 0; left: 0; right: 0;
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 16px 20px;
+    z-index: 50;
+    background: linear-gradient(to bottom, rgba(10,8,16,0.8), transparent);
+  }
+  .top-label { font-size: 10px; letter-spacing: 0.2em; color: rgba(201,168,76,0.5); text-transform: uppercase; }
+  .top-counter { font-size: 11px; letter-spacing: 0.15em; color: rgba(201,168,76,0.5); }
+
+  .clue-book { font-size: 10px; letter-spacing: 0.22em; text-transform: uppercase; color: var(--gold); margin-bottom: 8px; opacity: 0.85; }
+  .clue-title { font-size: 24px; font-weight: 600; color: var(--cream); margin-bottom: 4px; text-shadow: 0 0 20px rgba(201,168,76,0.4); }
+  .clue-location { font-family: 'Crimson Text', serif; font-style: italic; font-size: 13px; color: rgba(255,251,240,0.45); margin-bottom: 28px; }
+
+  .qr-box {
+    background: white;
+    padding: 14px;
+    border-radius: 16px;
+    box-shadow: 0 0 50px rgba(201,168,76,0.3), 0 0 0 1px rgba(201,168,76,0.15);
+    margin-bottom: 20px;
+    /* Force exact size so QR always renders */
+    width: 208px; height: 208px;
+    display: flex; align-items: center; justify-content: center;
+    overflow: hidden;
+  }
+  .qr-box canvas, .qr-box img { display: block !important; }
+
+  .clue-url {
+    font-family: 'Crimson Text', serif; font-style: italic;
+    font-size: 11px; color: rgba(255,251,240,0.25);
+    max-width: 300px; word-break: break-all; line-height: 1.5;
+  }
+
+  /* BOTTOM NAV */
+  .bottom-nav {
+    position: fixed; bottom: 0; left: 0; right: 0;
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 16px 20px 28px;
+    background: linear-gradient(to top, rgba(10,8,16,0.9), transparent);
+    z-index: 50;
+  }
+  .nav-btn {
+    width: 50px; height: 50px; border-radius: 50%;
+    background: rgba(201,168,76,0.1);
+    border: 1px solid rgba(201,168,76,0.3);
+    display: flex; align-items: center; justify-content: center;
+    font-size: 22px; color: var(--gold);
+    cursor: pointer; transition: all 0.15s;
+    user-select: none;
+  }
+  .nav-btn:active { background: rgba(201,168,76,0.3); transform: scale(0.93); }
+  .nav-btn.ghost { opacity: 0; pointer-events: none; }
+
+  /* DOTS */
+  .dots { display: flex; gap: 7px; align-items: center; }
+  .dot {
+    width: 7px; height: 7px; border-radius: 50%;
+    background: rgba(201,168,76,0.2);
+    border: 1px solid rgba(201,168,76,0.3);
+    cursor: pointer; transition: all 0.2s;
+  }
+  .dot.active { background: var(--gold); transform: scale(1.35); box-shadow: 0 0 8px rgba(201,168,76,0.6); }
+
+  /* TOP GRADIENT LINE */
+  .rainbow-line {
+    position: fixed; top: 0; left: 0; right: 0; height: 3px;
+    background: linear-gradient(90deg, #1a3a2a, #2a1650, #6b0e0e, #c9a84c, #0d2240, #4a2030, #c9a84c);
+    z-index: 100;
+  }
+</style>
+</head>
+<body>
+
+<div class="rainbow-line"></div>
+
+<div class="top-bar">
+  <div class="top-label">🔑 QR Codes</div>
+  <div class="top-counter" id="counter">1 / 7</div>
+</div>
+
+<!-- SCREENS -->
+<div class="screen active" id="s1">
+  <div class="clue-book">🌹 Book One — ACOTAR</div>
+  <div class="clue-title">Clue 1 — The Crossing</div>
+  <div class="clue-location">Breakfast in Bed → Apex Trail</div>
+  <div class="qr-box" id="qr1"></div>
+  <div class="clue-url">anthonyaerni.github.io/serrasbirthdayhunt/clue1.html</div>
+</div>
+
+<div class="screen" id="s2">
+  <div class="clue-book">🌙 Book Two — ACOMAF</div>
+  <div class="clue-title">Clue 2 — The Crown</div>
+  <div class="clue-location">Apex Trail Sign → Back Home</div>
+  <div class="qr-box" id="qr2"></div>
+  <div class="clue-url">anthonyaerni.github.io/serrasbirthdayhunt/clue2.html</div>
+</div>
+
+<div class="screen" id="s3">
+  <div class="clue-book">⚔️ Book Three — ACOWAR</div>
+  <div class="clue-title">Clue 3 — The Golden Thread</div>
+  <div class="clue-location">Framed Gift at Home → South Table Mtn</div>
+  <div class="qr-box" id="qr3"></div>
+  <div class="clue-url">anthonyaerni.github.io/serrasbirthdayhunt/clue3.html</div>
+</div>
+
+<div class="screen" id="s4">
+  <div class="clue-book">❄️ Book Four — ACOFAS</div>
+  <div class="clue-title">Clue 4 — The Password</div>
+  <div class="clue-location">Golden Yarn on Mountain → Brewery</div>
+  <div class="qr-box" id="qr4"></div>
+  <div class="clue-url">anthonyaerni.github.io/serrasbirthdayhunt/clue4.html</div>
+</div>
+
+<div class="screen" id="s5">
+  <div class="clue-book">🔥 Book Five — ACOSF</div>
+  <div class="clue-title">Clue 5 — The Flame</div>
+  <div class="clue-location">Brewery Bartender → Back Home</div>
+  <div class="qr-box" id="qr5"></div>
+  <div class="clue-url">anthonyaerni.github.io/serrasbirthdayhunt/clue5.html</div>
+</div>
+
+<div class="screen" id="s6">
+  <div class="clue-book">🌸 The Companion</div>
+  <div class="clue-title">Clue 6 — The Golden Table</div>
+  <div class="clue-location">Mom's Card at Home → Safta</div>
+  <div class="qr-box" id="qr6"></div>
+  <div class="clue-url">anthonyaerni.github.io/serrasbirthdayhunt/clue6.html</div>
+</div>
+
+<div class="screen" id="s7">
+  <div class="clue-book">⭐ The Full Arc</div>
+  <div class="clue-title">Clue 7 — The Sweetness</div>
+  <div class="clue-location">Delivered at Safta → Sweet Izzy</div>
+  <div class="qr-box" id="qr7"></div>
+  <div class="clue-url">anthonyaerni.github.io/serrasbirthdayhunt/clue7.html</div>
+</div>
+
+<!-- BOTTOM NAV -->
+<div class="bottom-nav">
+  <div class="nav-btn ghost" id="prevBtn" onclick="go(-1)">‹</div>
+  <div class="dots" id="dots"></div>
+  <div class="nav-btn" id="nextBtn" onclick="go(1)">›</div>
+</div>
+
+<script>
+const BASE = 'https://anthonyaerni.github.io/serrasbirthdayhunt/';
+
+const clues = [
+  { screen:'s1', qrEl:'qr1', url: BASE+'clue1.html', dark:'#1a3a2a' },
+  { screen:'s2', qrEl:'qr2', url: BASE+'clue2.html', dark:'#0a1628' },
+  { screen:'s3', qrEl:'qr3', url: BASE+'clue3.html', dark:'#6b0e0e' },
+  { screen:'s4', qrEl:'qr4', url: BASE+'clue4.html', dark:'#0d2240' },
+  { screen:'s5', qrEl:'qr5', url: BASE+'clue5.html', dark:'#2a2030' },
+  { screen:'s6', qrEl:'qr6', url: BASE+'clue6.html', dark:'#4a2030' },
+  { screen:'s7', qrEl:'qr7', url: BASE+'clue7.html', dark:'#060810' },
+];
+
+// Track which QRs have been generated
+const generated = {};
+
+let current = 0;
+
+// Build dots
+const dotsEl = document.getElementById('dots');
+clues.forEach((_, i) => {
+  const d = document.createElement('div');
+  d.className = 'dot' + (i === 0 ? ' active' : '');
+  d.onclick = () => goTo(i);
+  dotsEl.appendChild(d);
+});
+
+// Generate QR for a specific index
+function generateQR(index) {
+  const c = clues[index];
+  if (generated[index]) return; // already done
+  generated[index] = true;
+
+  const container = document.getElementById(c.qrEl);
+  container.innerHTML = ''; // clear any previous content
+
+  try {
+    new QRCode(container, {
+      text: c.url,
+      width: 180,
+      height: 180,
+      colorDark: c.dark,
+      colorLight: '#ffffff',
+      correctLevel: QRCode.CorrectLevel.H
+    });
+  } catch(e) {
+    container.innerHTML = '<div style="font-size:11px;color:#999;padding:20px;font-family:sans-serif;">QR generation failed.<br>Check console.</div>';
+    console.error('QR error for clue', index+1, e);
+  }
+}
+
+function goTo(n) {
+  // Hide current
+  document.getElementById(clues[current].screen).classList.remove('active');
+
+  current = Math.max(0, Math.min(clues.length - 1, n));
+
+  // Show new
+  document.getElementById(clues[current].screen).classList.add('active');
+
+  // Generate QR if not done yet
+  generateQR(current);
+
+  // Update counter
+  document.getElementById('counter').textContent = `${current + 1} / ${clues.length}`;
+
+  // Update dots
+  document.querySelectorAll('.dot').forEach((d, i) => d.classList.toggle('active', i === current));
+
+  // Update buttons
+  document.getElementById('prevBtn').classList.toggle('ghost', current === 0);
+  document.getElementById('nextBtn').classList.toggle('ghost', current === clues.length - 1);
+}
+
+function go(dir) { goTo(current + dir); }
+
+// Touch swipe
+let touchStartX = 0;
+document.addEventListener('touchstart', e => { touchStartX = e.touches[0].clientX; }, { passive: true });
+document.addEventListener('touchend', e => {
+  const diff = touchStartX - e.changedTouches[0].clientX;
+  if (Math.abs(diff) > 50) go(diff > 0 ? 1 : -1);
+});
+
+// Generate first QR immediately on load
+window.addEventListener('load', () => { generateQR(0); });
+</script>
+
+</body>
+</html>
